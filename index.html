@@ -1,49 +1,55 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Student JSON Uploader</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body style="font-family: sans-serif; padding: 20px;">
-  <h2>📤 Upload JSON File</h2>
-  <input type="file" id="fileInput" accept=".json" />
-  <button id="uploadBtn">Upload</button>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Upload Any File with Debug</title>
+  </head>
+  <body>
+    <h2>Upload File</h2>
+    <input type="file" id="fileInput" />
+    <input type="text" id="uploader" placeholder="Your name or email (optional)" />
+    <button id="uploadBtn">Upload</button>
 
-  <p id="msg"></p>
+    <script type="module">
+      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-  <script>
-    const SUPABASE_URL = 'https://ociaekhyqtiintzguudo.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU';
+      // ضع هنا بيانات مشروعك
+      const SUPABASE_URL = 'https://ociaekhyqtiintzguudo.supabase.co'
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU'
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-    document.getElementById("uploadBtn").addEventListener("click", async () => {
-      const fileInput = document.getElementById("fileInput");
-      const msg = document.getElementById("msg");
+      document.getElementById('uploadBtn').addEventListener('click', async () => {
+        const f = document.getElementById('fileInput').files[0]
+        const uploader = document.getElementById('uploader').value || null
+        if (!f) return
 
-      if (!fileInput.files.length) {
-        msg.textContent = "⚠️ Please choose a file first.";
-        return;
-      }
+        // اسم الملف مع timestamp لتجنب التكرار
+        const filePath = `uploads/${Date.now()}_${f.name}`
 
-      const file = fileInput.files[0];
-      const filePath = `uploads/${Date.now()}_${file.name}`;
+        // رفع الملف إلى Storage
+        const { data, error: uploadErr } = await supabase.storage.from('uploads').upload(filePath, f)
+        console.log('Upload Data:', data)
+        console.log('Upload Error:', uploadErr)
 
-      msg.textContent = "⏳ Uploading...";
+        // حفظ معلومات الملف في قاعدة البيانات
+        if (!uploadErr) {
+          const { data: dbData, error: dbErr } = await supabase.from('student_files').insert([{
+            filename: f.name,
+            uploader,
+            storage_path: filePath,
+            metadata: { size: f.size },
+            created_at: new Date().toISOString()
+          }])
+          console.log('DB Insert Data:', dbData)
+          console.log('DB Insert Error:', dbErr)
+        }
 
-      const { data, error } = await supabase.storage.from("uploads").upload(filePath, file);
-
-      if (error) {
-        console.error("Upload error:", error);
-        msg.textContent = "❌ Upload failed: " + error.message;
-      } else {
-        console.log("✅ Uploaded:", data);
-        msg.textContent = "✅ File uploaded successfully!";
-      }
-    });
-  </script>
-</body>
+        // إعادة تعيين الحقول
+        document.getElementById('fileInput').value = ''
+        document.getElementById('uploader').value = ''
+      })
+    </script>
+  </body>
 </html>
 

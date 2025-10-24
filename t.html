@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Upload JSON</title>
+  </head>
+  <body>
+    <h2>Upload JSON file</h2>
+    <input type="file" id="fileInput" accept=".json" />
+    <input type="text" id="uploader" placeholder="Your name or email (optional)" />
+    <button id="uploadBtn">Upload</button>
+
+    <script type="module">
+      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+      const SUPABASE_URL = 'https://ociaekhyqtiintzguudo.supabase.co'  // غيّر
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU'             // غيّر
+
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+      document.getElementById('uploadBtn').addEventListener('click', async () => {
+        const f = document.getElementById('fileInput').files[0]
+        const uploader = document.getElementById('uploader').value || null
+        if (!f) return alert('اختَر ملف JSON أولاً')
+
+        // قراءة الملف والتأكد من صلاحيته JSON
+        const text = await f.text()
+        let parsed
+        try {
+          parsed = JSON.parse(text)
+        } catch (e) {
+          return alert('الملف ليس JSON صالح: ' + e.message)
+        }
+
+        // رفع الملف إلى Storage
+        const filePath = `uploads/${Date.now()}_${f.name}`
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('uploads')
+          .upload(filePath, f, { cacheControl: '3600', upsert: false })
+
+        if (uploadErr) return alert('خطأ بالرفع: ' + uploadErr.message)
+
+        // حفظ سجل في الجدول (نخزن مسار ونسخة من json وأسم الرافع)
+        const { error: insertErr } = await supabase
+          .from('student_files')
+          .insert([{
+            filename: f.name,
+            uploader,
+            storage_path: filePath,
+            json_data: parsed,
+            metadata: { size: f.size }
+          }])
+
+        if (insertErr) return alert('خطأ بحفظ السجل: ' + insertErr.message)
+
+        alert('تم الرفع بنجاح!')
+      })
+    </script>
+  </body>
+</html>

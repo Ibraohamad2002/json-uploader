@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Upload Any File with Debug</title>
+    <title>Upload Any File</title>
   </head>
   <body>
     <h2>Upload File</h2>
@@ -22,32 +22,19 @@
       document.getElementById('uploadBtn').addEventListener('click', async () => {
         const f = document.getElementById('fileInput').files[0]
         const uploader = document.getElementById('uploader').value || null
-        if (!f) return
+        if (!f) return alert('Please select a file.')
 
-        // اسم الملف مع timestamp لتجنب التكرار
+        // مسار تخزين الملف
         const filePath = `uploads/${Date.now()}_${f.name}`
 
         // رفع الملف إلى Storage
-        const { data, error: uploadErr } = await supabase.storage.from('uploads').upload(filePath, f)
-        console.log('Upload Data:', data)
-        console.log('Upload Error:', uploadErr)
+        const { error: uploadErr } = await supabase.storage
+          .from('uploads')
+          .upload(filePath, f)
 
-        // حفظ معلومات الملف في قاعدة البيانات
-        if (!uploadErr) {
-          const { data: dbData, error: dbErr } = await supabase.from('student_files').insert([{
-            filename: f.name,
-            uploader,
-            storage_path: filePath,
-            metadata: { size: f.size },
-            created_at: new Date().toISOString()
-          }])
-          console.log('DB Insert Data:', dbData)
-          console.log('DB Insert Error:', dbErr)
-        }
+        if(uploadErr) return alert('Upload error: ' + uploadErr.message)
 
-        // إعادة تعيين الحقول
-        document.getElementById('fileInput').value = ''
-        document.getElementById('uploader').value = ''
+        alert('Upload successful!')
       })
     </script>
   </body>
